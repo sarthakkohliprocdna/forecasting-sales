@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TerraForecast — Territory Sales Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Clash+Display:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+:root{
+  --bg:#05080d;
+  --s1:#090d14;
+  --s2:#0d1420;
+  --s3:#111925;
+  --b1:rgba(255,255,255,.06);
+  --b2:rgba(255,255,255,.1);
+  --b3:rgba(255,255,255,.16);
+  --tx:#e2e8f3;
+  --tx2:#8a96a8;
+  --tx3:#4a5568;
+  --acc:#3ef0b0;
+  --acc-d:#00c87a;
+  --acc2:#5b8af0;
+  --warn:#f0b840;
+  --danger:#f05060;
+  --ok:#30d080;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --glow:0 0 24px rgba(62,240,176,.15);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;height:100%}
+body{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:
+  radial-gradient(ellipse 80% 50% at 20% -10%,rgba(62,240,176,.06) 0%,transparent 60%),
+  radial-gradient(ellipse 60% 40% at 80% 110%,rgba(91,138,240,.05) 0%,transparent 60%),
+  var(--bg)}
+
+/* ── Header ── */
+header{
+  height:58px;border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;flex-shrink:0;
+  background:rgba(5,8,13,.8);backdrop-filter:blur(12px);
+  position:relative;z-index:10;
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{
+  width:28px;height:28px;border-radius:7px;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#000;font-family:var(--mono);
+}
+.logo-text{font-size:16px;font-weight:700;letter-spacing:-.3px;color:var(--tx)}
+.logo-text span{color:var(--acc)}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.hdr-pill{
+  font-size:10px;font-family:var(--mono);letter-spacing:.08em;
+  background:rgba(62,240,176,.08);color:var(--acc);
+  border:1px solid rgba(62,240,176,.2);padding:4px 12px;border-radius:20px;
+}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:300px 1fr;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{
+  border-right:1px solid var(--b1);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--s1);
+}
+.sb-sec{padding:14px 18px;border-bottom:1px solid var(--b1)}
+.sb-lbl{
+  font-size:9px;font-family:var(--mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--tx3);margin-bottom:10px;
+}
+
+/* Drop zone */
+.dz{
+  border:1.5px dashed rgba(255,255,255,.1);border-radius:10px;
+  padding:20px 14px;text-align:center;cursor:pointer;
+  transition:.2s;position:relative;background:rgba(255,255,255,.02);
+}
+.dz:hover,.dz.over{
+  border-color:var(--acc);background:rgba(62,240,176,.04);
+  box-shadow:var(--glow);
+}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-icon{
+  width:36px;height:36px;border-radius:8px;
+  background:rgba(62,240,176,.1);border:1px solid rgba(62,240,176,.2);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 10px;
+}
+.dz p{font-size:12px;color:var(--tx2)}
+.dz p strong{color:var(--tx);font-weight:600}
+.ftag{
+  display:none;align-items:center;gap:8px;margin-top:10px;
+  padding:7px 10px;background:rgba(62,240,176,.07);
+  border:1px solid rgba(62,240,176,.18);border-radius:8px;
+  font-family:var(--mono);font-size:11px;color:var(--acc);
+}
+.ftag.show{display:flex}
+
+/* Column config */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ci label{display:block;font-size:9px;font-family:var(--mono);color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.ci input{
+  width:100%;background:var(--s2);border:1px solid var(--b1);
+  border-radius:6px;padding:6px 9px;color:var(--tx);
+  font-family:var(--mono);font-size:11px;outline:none;transition:.15s;
+}
+.ci input:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(62,240,176,.1)}
+
+/* Period toggle */
+.tog{display:flex;background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:3px;gap:2px}
+.tb{
+  flex:1;padding:6px 4px;border:none;border-radius:6px;
+  font-family:var(--mono);font-size:10px;cursor:pointer;
+  background:none;color:var(--tx3);letter-spacing:.04em;transition:.15s;
+  text-transform:uppercase;
+}
+.tb.on{background:var(--acc);color:#000;font-weight:500;box-shadow:0 2px 8px rgba(62,240,176,.3)}
+
+/* Run button */
+.runbtn{
+  width:100%;padding:11px;
+  background:linear-gradient(135deg,var(--acc),var(--acc-d));
+  color:#000;font-family:var(--sans);font-size:13px;font-weight:700;
+  border:none;border-radius:8px;cursor:pointer;transition:.2s;
+  letter-spacing:.02em;box-shadow:0 4px 16px rgba(62,240,176,.25);
+}
+.runbtn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(62,240,176,.35)}
+.runbtn:active{transform:translateY(0)}
+.runbtn:disabled{background:var(--s3);color:var(--tx3);cursor:not-allowed;box-shadow:none;transform:none}
+.runbtn.busy .t{display:none}
+.runbtn .sp{display:none;width:14px;height:14px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .5s linear infinite;margin:0 auto}
+.runbtn.busy .sp{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.stat{background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:9px 8px;text-align:center}
+.sv{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--acc)}
+.sl{font-size:9px;color:var(--tx3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+
+/* Progress */
+.prog{padding:10px 18px;display:none;border-bottom:1px solid var(--b1)}
+.prog.show{display:block}
+.pl{font-size:10px;font-family:var(--mono);color:var(--tx2);margin-bottom:5px;display:flex;justify-content:space-between}
+.pb{height:2px;background:var(--b1);border-radius:1px;overflow:hidden}
+.pf{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:1px;transition:width .3s}
+
+/* Search */
+.srch{padding:8px 12px;border-bottom:1px solid var(--b1)}
+.srch input{
+  width:100%;background:var(--s2);border:1px solid var(--b1);
+  border-radius:6px;padding:6px 10px;color:var(--tx);
+  font-family:var(--mono);font-size:11px;outline:none;
+}
+.srch input::placeholder{color:var(--tx3)}
+.srch input:focus{border-color:var(--b2)}
+
+/* Territory list */
+.tlist{flex:1;overflow-y:auto;padding:5px}
+.tlist::-webkit-scrollbar{width:3px}
+.tlist::-webkit-scrollbar-thumb{background:var(--b1);border-radius:2px}
+.trow{
+  padding:8px 12px;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;transition:.12s;margin-bottom:1px;
+  border:1px solid transparent;
+}
+.trow:hover{background:var(--s2)}
+.trow.active{background:var(--s2);border-color:var(--b2)}
+.trow.active .tn{color:var(--acc)}
+.tn{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;transition:.12s}
+.tm{font-size:10px;font-family:var(--mono);color:var(--tx3)}
+.wp{font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;font-weight:500}
+.wg{background:rgba(48,208,128,.12);color:#30d080;border:1px solid rgba(48,208,128,.2)}
+.wy{background:rgba(240,184,64,.12);color:#f0b840;border:1px solid rgba(240,184,64,.2)}
+.wr{background:rgba(240,80,96,.12);color:#f05060;border:1px solid rgba(240,80,96,.2)}
+
+/* ── Main panel ── */
+.main{overflow-y:auto;display:flex;flex-direction:column}
+.main::-webkit-scrollbar{width:4px}
+.main::-webkit-scrollbar-thumb{background:var(--b1);border-radius:2px}
+
+/* Empty state */
+.empty{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+}
+.empty-icon{
+  width:64px;height:64px;border-radius:16px;
+  background:rgba(255,255,255,.03);border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;opacity:.5;
+}
+.empty p{font-size:13px;color:var(--tx3);font-family:var(--mono)}
+
+/* Content area */
+.content{padding:28px 32px;flex:1}
+
+/* Tabs */
+.tab-bar{
+  display:flex;gap:2px;border-bottom:1px solid var(--b1);
+  margin-bottom:24px;
+}
+.tab-btn{
+  padding:9px 18px;font-size:12px;font-weight:600;
+  background:none;border:none;cursor:pointer;color:var(--tx3);
+  border-bottom:2px solid transparent;transition:.15s;
+  letter-spacing:.01em;
+}
+.tab-btn:hover{color:var(--tx)}
+.tab-btn.on{color:var(--acc);border-bottom-color:var(--acc)}
+
+/* Action bar */
+.abar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:24px}
+.abtn{
+  background:var(--s2);border:1px solid var(--b1);border-radius:7px;
+  padding:7px 14px;color:var(--tx2);font-family:var(--mono);font-size:11px;
+  cursor:pointer;letter-spacing:.04em;text-transform:uppercase;transition:.15s;
+}
+.abtn:hover{border-color:var(--b2);color:var(--tx)}
+.abtn.on{border-color:var(--acc);color:var(--acc);background:rgba(62,240,176,.07)}
+.abtn-primary{
+  background:rgba(62,240,176,.1);border:1px solid rgba(62,240,176,.25);
+  color:var(--acc);font-family:var(--mono);font-size:11px;
+  border-radius:7px;padding:7px 16px;cursor:pointer;transition:.15s;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.abtn-primary:hover{background:rgba(62,240,176,.18)}
+
+/* Section heading */
+.sh{
+  font-size:9px;font-family:var(--mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--tx3);margin:28px 0 14px;
+  display:flex;align-items:center;gap:10px;
+}
+.sh::after{content:'';flex:1;height:1px;background:var(--b1)}
+
+/* Detail header */
+.dh{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:4px}
+.dh-title{font-size:28px;font-weight:800;letter-spacing:-.5px;color:var(--tx)}
+.dh-sub{font-size:11px;font-family:var(--mono);color:var(--tx3);margin-top:4px}
+.winner-box{
+  background:rgba(62,240,176,.06);
+  border:1px solid rgba(62,240,176,.18);
+  border-radius:10px;padding:12px 18px;text-align:right;
+  box-shadow:0 0 20px rgba(62,240,176,.08);
+}
+.wl{font-size:9px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--acc);margin-bottom:3px}
+.wn{font-size:16px;font-weight:700;color:var(--acc)}
+.we{font-size:10px;font-family:var(--mono);color:var(--tx3);margin-top:2px}
+
+/* Forecast cards */
+.fc-grid{display:grid;gap:10px}
+.fcard{
+  background:var(--s1);
+  border:1px solid var(--b1);border-radius:12px;
+  padding:16px;position:relative;overflow:hidden;
+  transition:.2s;
+}
+.fcard:hover{border-color:var(--b2);transform:translateY(-1px)}
+.fcard::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--acc),var(--acc2));
+}
+.fc-period{font-size:9px;font-family:var(--mono);color:var(--tx3);text-transform:uppercase;letter-spacing:.1em}
+.fc-val{font-size:30px;font-weight:800;font-family:var(--mono);color:var(--tx);margin:6px 0 1px;letter-spacing:-1px}
+.fc-unit{font-size:9px;font-family:var(--mono);color:var(--tx3)}
+.fc-delta{font-size:10px;font-family:var(--mono);margin-top:5px;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px}
+.fc-delta.up{background:rgba(48,208,128,.1);color:#30d080}
+.fc-delta.dn{background:rgba(240,80,96,.1);color:#f05060}
+.fc-band{
+  font-size:10px;font-family:var(--mono);color:var(--tx3);
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.fc-band-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;opacity:.6}
+
+/* Chart */
+.chart-card{
+  background:var(--s1);border:1px solid var(--b1);
+  border-radius:12px;padding:20px;height:260px;
+}
+
+/* Model table */
+.mtbl{width:100%;border-collapse:collapse;font-family:var(--mono)}
+.mtbl th{
+  font-size:9px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--tx3);padding:8px 12px;text-align:left;
+  border-bottom:1px solid var(--b1);
+}
+.mtbl td{padding:9px 12px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.mtbl tr:last-child td{border-bottom:none}
+.mtbl tr.win{background:rgba(62,240,176,.04)}
+.mtbl tr.win td:first-child{border-left:2px solid var(--acc)}
+.mtbl tr.win .mn{color:var(--acc);font-weight:500}
+.mtbl tr.fail td{opacity:.3}
+.bw{display:flex;align-items:center;gap:8px}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.06);flex:1;max-width:90px;overflow:hidden}
+.bf{height:100%;border-radius:2px}
+.rank{width:20px;font-size:10px;color:var(--tx3);text-align:center}
+
+/* Matrix table */
+.mx-wrap{overflow-x:auto;border:1px solid var(--b1);border-radius:12px}
+.mxt{border-collapse:collapse;font-family:var(--mono);font-size:11px;white-space:nowrap;width:100%}
+.mxt th{
+  background:var(--s2);padding:9px 14px;text-align:left;
+  font-size:9px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--tx3);border-bottom:1px solid var(--b1);
+  position:sticky;top:0;
+}
+.mxt td{padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04)}
+.mxt tr:hover td{background:var(--s1);cursor:pointer}
+.mxt th.sel,.mxt td.sel{color:var(--acc)}
+.mxt td.tid{font-weight:600;color:var(--acc)}
+
+/* Forecast summary table */
+.fst{border-collapse:collapse;font-family:var(--mono);font-size:11px;width:100%}
+.fst th{
+  background:var(--s2);padding:9px 14px;text-align:left;
+  font-size:9px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--tx3);border-bottom:1px solid var(--b1);
+}
+.fst td{padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.fst tr:hover td{background:var(--s1)}
+.fst td.tid{font-weight:600;color:var(--acc)}
+.fst td.fc{color:var(--tx);font-weight:500}
+.fst td.lo{color:var(--tx3)}
+.fst td.hi{color:var(--tx3)}
+.fst-wrap{border:1px solid var(--b1);border-radius:12px;overflow:auto}
+
+/* Download sheet tabs */
+.dl-tabs{display:flex;gap:6px;margin-bottom:16px}
+.dl-tab{
+  padding:6px 14px;border-radius:6px;font-family:var(--mono);font-size:11px;
+  cursor:pointer;background:var(--s2);border:1px solid var(--b1);
+  color:var(--tx2);transition:.15s;text-transform:uppercase;letter-spacing:.05em;
+}
+.dl-tab.on{background:rgba(62,240,176,.1);border-color:rgba(62,240,176,.25);color:var(--acc)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">TF</div>
+    <div class="logo-text">Terra<span>Forecast</span></div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-pill">Pharma Territory Intelligence</div>
+  </div>
+</header>
+
+<div class="layout">
+<!-- ─── SIDEBAR ─── -->
+<div class="sidebar">
+  <div class="sb-sec">
+    <div class="sb-lbl">Data source</div>
+    <div class="dz" id="dz">
+      <input type="file" id="fi" accept=".csv,.xlsx,.xls"/>
+      <div class="dz-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3ef0b0" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      </div>
+      <p><strong>Drop file here</strong> or click to browse</p>
+      <p style="font-size:10px;margin-top:3px;font-family:var(--mono);color:var(--tx3)">.csv · .xlsx · .xls</p>
+    </div>
+    <div class="ftag" id="ftag">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span id="fname" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></span>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Column mapping</div>
+    <div class="cfg-grid">
+      <div class="ci"><label>Date</label><input id="cDate" value="transaction_date"/></div>
+      <div class="ci"><label>Territory ID</label><input id="cId" value="territory_id"/></div>
+      <div class="ci" style="grid-column:span 2"><label>Value (TRx / Revenue)</label><input id="cVal" value="metric_value"/></div>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Forecast period</div>
+    <div class="tog">
+      <button class="tb" id="tbM" onclick="setMode('monthly')">Monthly</button>
+      <button class="tb on" id="tbQ" onclick="setMode('quarterly')">Quarterly</button>
+      <button class="tb" id="tbH" onclick="setMode('biannual')">6-Month</button>
+    </div>
+    <div style="margin-top:8px;font-size:10px;font-family:var(--mono);color:var(--tx3);padding:6px 8px;background:var(--s2);border-radius:6px;border:1px solid var(--b1)">
+      Holdout: auto · 6m high-vol · 3m mid · 2m low-vol
+    </div>
+  </div>
+
+  <div class="sb-sec" style="border-bottom:none">
+    <button class="runbtn" id="runBtn" onclick="run()" disabled>
+      <span class="t">Run forecast engine</span><div class="sp"></div>
+    </button>
+  </div>
+
+  <div class="prog" id="prog">
+    <div class="pl"><span id="pl">Processing…</span><span id="pct">0%</span></div>
+    <div class="pb"><div class="pf" id="pf" style="width:0%"></div></div>
+  </div>
+
+  <div class="sb-sec" id="statsBox" style="display:none">
+    <div class="sb-lbl">Run results</div>
+    <div class="stats">
+      <div class="stat"><div class="sv" id="stT">—</div><div class="sl">Territories</div></div>
+      <div class="stat"><div class="sv" id="stW">—</div><div class="sl">Avg wMAPE</div></div>
+      <div class="stat"><div class="sv" id="stM">—</div><div class="sl">Models</div></div>
+    </div>
+  </div>
+
+  <div class="srch" id="srchBox" style="display:none">
+    <input placeholder="Search territories or models…" oninput="filterList(this.value)"/>
+  </div>
+  <div class="tlist" id="tlist"></div>
+</div>
+
+<!-- ─── MAIN ─── -->
+<div class="main" id="main">
+  <div class="empty" id="emptyMsg">
+    <div class="empty-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>
+    </div>
+    <p>Upload a file and run the forecast engine</p>
+  </div>
+  <div class="content" id="content" style="display:none">
+    <div class="tab-bar" id="tabBar" style="display:none">
+      <button class="tab-btn on" onclick="switchTab('territory')" id="tabTerr">Territory detail</button>
+      <button class="tab-btn" onclick="switchTab('forecast')" id="tabFc">Forecast summary</button>
+      <button class="tab-btn" onclick="switchTab('matrix')" id="tabMx">Model matrix</button>
+      <button class="tab-btn" onclick="switchTab('download')" id="tabDl">Download</button>
+    </div>
+    <div id="tabContent"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══ STATE ═══════════════════════════════════════════════════════════════════
+let summary=[], detail=[], matrix=[], activeId=null, myChart=null;
+let forecastMode='quarterly', rawData=null, currentTab='territory';
+
+// ═══ FILE ════════════════════════════════════════════════════════════════════
+const dz=document.getElementById('dz'), fi=document.getElementById('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
+fi.addEventListener('change',()=>{if(fi.files[0])loadFile(fi.files[0])});
+function loadFile(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      rawData=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{raw:false});
+      document.getElementById('fname').textContent=f.name;
+      document.getElementById('ftag').classList.add('show');
+      document.getElementById('runBtn').disabled=false;
+    }catch(err){alert('Cannot parse file: '+err.message);}
+  };
+  r.readAsArrayBuffer(f);
+}
+
+// ═══ MODE ════════════════════════════════════════════════════════════════════
+function setMode(m){
+  forecastMode=m;
+  ['M','Q','H'].forEach(k=>document.getElementById('tb'+k).classList.remove('on'));
+  document.getElementById('tb'+(m==='monthly'?'M':m==='quarterly'?'Q':'H')).classList.add('on');
+}
+function getHorizon(){return forecastMode==='monthly'?1:forecastMode==='quarterly'?3:6}
+function getModeLabel(){return forecastMode==='monthly'?'Month':forecastMode==='quarterly'?'Quarter':'Period'}
+
+// ═══ UTILS ═══════════════════════════════════════════════════════════════════
+function toDate(v){if(!v)return null;if(v instanceof Date)return v;const d=new Date(v);return isNaN(d)?null:d;}
+function monthKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function addM(d,n){const r=new Date(d);r.setMonth(r.getMonth()+n);return r;}
+function wmape(a,p){const dn=a.reduce((s,v)=>s+Math.abs(v),0);if(!dn)return NaN;return a.reduce((s,v,i)=>s+Math.abs(v-p[i]),0)/dn;}
+function mase(a,p,tr){const mae=a.reduce((s,v,i)=>s+Math.abs(v-p[i]),0)/a.length;const nd=tr.slice(1).map((v,i)=>Math.abs(v-tr[i]));const nm=nd.reduce((s,v)=>s+v,0)/(nd.length||1);return nm?mae/nm:NaN;}
+function ols(x,y){const n=x.length,sx=x.reduce((a,b)=>a+b,0),sy=y.reduce((a,b)=>a+b,0),sxy=x.reduce((s,v,i)=>s+v*y[i],0),sxx=x.reduce((s,v)=>s+v*v,0),D=n*sxx-sx*sx;if(!D)return{m:0,b:sy/n};return{m:(n*sxy-sx*sy)/D,b:(sy-sx*(n*sxy-sx*sy)/D)/n};}
+function clamp(v){return Math.max(0,v);}
+function winsorise(arr,pct=0.97){const s=[...arr].sort((a,b)=>a-b);const cap=s[Math.floor(pct*(s.length-1))];return arr.map(v=>Math.min(v,cap));}
+function adaptiveHoldout(avg){return avg>=10?6:avg>=4?3:2;}
+function buildCI(fc,w){const ww=(w==null||isNaN(w))?0.20:w;const half=fc.map(v=>v*ww*1.5);return{lo:fc.map((v,i)=>Math.max(0,+(v-half[i]).toFixed(2))),hi:fc.map((v,i)=>+(v+half[i]).toFixed(2))};}
+function safeCol(n){return n.replace(/[() ,]/g,'_').replace(/__+/g,'_').replace(/_$/,'');}
+function fmt(v,dp=1){return v==null||isNaN(v)?'—':Number(v).toFixed(dp);}
+
+// ═══ MODELS ══════════════════════════════════════════════════════════════════
+const M={};
+M['Naive']=(tr,h)=>Array(h).fill(tr[tr.length-1]);
+M['Mean']=(tr,h)=>{const m=tr.reduce((a,b)=>a+b,0)/tr.length;return Array(h).fill(m);};
+M['Moving Avg']=(tr,h)=>{const w=Math.min(3,tr.length),ma=tr.slice(-w).reduce((a,b)=>a+b,0)/w;return Array(h).fill(ma);};
+M['Weighted MA']=(tr,h)=>{const w=Math.min(4,tr.length),sl=tr.slice(-w),ws=Array.from({length:w},(_,i)=>i+1),ws2=ws.reduce((a,b)=>a+b,0);const wma=sl.reduce((s,v,i)=>s+v*ws[i],0)/ws2;const {m}=ols(sl.map((_,i)=>i),sl);return Array.from({length:h},(_,i)=>clamp(wma+m*(i+1)*0.5));};
+M['Linear Trend']=(tr,h)=>{const {m,b}=ols(tr.map((_,i)=>i),tr);return Array.from({length:h},(_,i)=>clamp(m*(tr.length+i)+b));};
+M['Drift']=(tr,h)=>{if(tr.length<2)throw Error('2+');const d=(tr[tr.length-1]-tr[0])/(tr.length-1);return Array.from({length:h},(_,i)=>clamp(tr[tr.length-1]+d*(i+1)));};
+M['Exp Trend']=(tr,h)=>{const pos=tr.map(v=>Math.max(.001,v)),ly=pos.map(Math.log),{m,b}=ols(tr.map((_,i)=>i),ly);return Array.from({length:h},(_,i)=>clamp(Math.exp(b+m*(tr.length+i))));};
+M['SES']=(tr,h)=>{let ba=0.3,be=Infinity;for(let a=0.05;a<1;a+=0.05){let s=tr[0],e=0;for(let i=1;i<tr.length;i++){e+=Math.abs(tr[i]-s);s=a*tr[i]+(1-a)*s;}if(e<be){be=e;ba=a;}}let s=tr[0];for(let i=1;i<tr.length;i++)s=ba*tr[i]+(1-ba)*s;return Array(h).fill(clamp(s));};
+M['Holt']=(tr,h)=>{if(tr.length<4)throw Error('4+');let ba=0.3,bb=0.1,be=Infinity;for(const a of[.1,.2,.3,.4,.5,.6])for(const b of[.05,.1,.2,.3]){let l=tr[0],t=tr[1]-tr[0],e=0;for(let i=1;i<tr.length;i++){e+=Math.abs(tr[i]-(l+t));const nl=a*tr[i]+(1-a)*(l+t);t=b*(nl-l)+(1-b)*t;l=nl;}if(e<be){be=e;ba=a;bb=b;}}let l=tr[0],t=tr[1]-tr[0];for(let i=1;i<tr.length;i++){const nl=ba*tr[i]+(1-ba)*(l+t);t=bb*(nl-l)+(1-bb)*t;l=nl;}return Array.from({length:h},(_,i)=>clamp(l+(i+1)*t));};
+M['Holt-Winters']=(tr,h)=>{const p=12;if(tr.length<2*p)throw Error('24+ months needed');const a=0.3,b=0.1,g=0.2;let l=tr.slice(0,p).reduce((s,v)=>s+v,0)/p,t=(tr.slice(p,2*p).reduce((s,v)=>s+v,0)/p-l)/p;const seas=tr.slice(0,p).map(v=>v-l);for(let i=p;i<tr.length;i++){const si=i%p,nl=a*(tr[i]-seas[si])+(1-a)*(l+t);t=b*(nl-l)+(1-b)*t;seas[si]=g*(tr[i]-nl)+(1-g)*seas[si];l=nl;}return Array.from({length:h},(_,i)=>clamp(l+(i+1)*t+seas[(tr.length+i)%p]));};
+M['ARIMA']=(tr,h)=>{if(tr.length<6)throw Error('6+');const d=tr.slice(1).map((v,i)=>v-tr[i]);const {m:phi,b:c}=ols(d.slice(0,-1),d.slice(1));let last=tr[tr.length-1],ld=d[d.length-1];const ps=[];for(let i=0;i<h;i++){const dd=c+phi*ld,nx=clamp(last+dd);ps.push(nx);ld=dd;last=nx;}return ps;};
+M['Theta']=(tr,h)=>{const ses=M['SES'](tr,h),lin=M['Linear Trend'](tr,h);return ses.map((v,i)=>clamp((v+lin[i])/2));};
+M['Median']=(tr,h)=>{const s=[...tr].sort((a,b)=>a-b),med=s.length%2===0?(s[s.length/2-1]+s[s.length/2])/2:s[Math.floor(s.length/2)];const rc=tr.slice(-3),{m}=ols(rc.map((_,i)=>i),rc);return Array.from({length:h},(_,i)=>clamp(med+m*(i+1)));};
+const MN=Object.keys(M);
+
+// ═══ PROGRESS ════════════════════════════════════════════════════════════════
+function setProg(show,lbl,pct){
+  document.getElementById('prog').classList.toggle('show',show);
+  if(lbl)document.getElementById('pl').textContent=lbl;
+  if(pct!=null){document.getElementById('pf').style.width=pct+'%';document.getElementById('pct').textContent=pct+'%';}
+  if(!show){document.getElementById('pf').style.width='0%';document.getElementById('pct').textContent='0%';}
+}
+
+// ═══ RUN ═════════════════════════════════════════════════════════════════════
+function run(){
+  if(!rawData)return;
+  const dc=document.getElementById('cDate').value.trim();
+  const ic=document.getElementById('cId').value.trim();
+  const vc=document.getElementById('cVal').value.trim();
+  const H=getHorizon();
+  const btn=document.getElementById('runBtn');
+  btn.classList.add('busy');btn.disabled=true;
+  setProg(true,'Parsing data…',5);
+  setTimeout(()=>{
+    try{
+      const mo={};
+      for(const row of rawData){
+        const tid=String(row[ic]||'').trim();
+        const d=toDate(row[dc]);const v=parseFloat(row[vc])||0;
+        if(!tid||!d)continue;
+        const mk=monthKey(d);
+        if(!mo[tid])mo[tid]={};
+        mo[tid][mk]=(mo[tid][mk]||0)+v;
+      }
+      const terrs=Object.keys(mo);
+      const allMo=[...new Set(Object.values(mo).flatMap(Object.keys))].sort();
+      summary=[];detail=[];matrix=[];
+      terrs.forEach((tid,ti)=>{
+        const mks=allMo.filter(m=>mo[tid][m]!==undefined);
+        const ser=mks.map(m=>mo[tid][m]);
+        const avgVol=ser.reduce((a,b)=>a+b,0)/ser.length;
+        const Ho=adaptiveHoldout(avgVol);
+        const MIN=6;
+        if(ser.length<MIN+Ho){
+          const mn=avgVol;
+          const ld=new Date(mks[mks.length-1]+'-01');
+          const fc=Array(H).fill(+mn.toFixed(2));
+          const {lo,hi}=buildCI(fc,0.20);
+          summary.push({tid,best_model:'Mean (fallback)',best_wmape:null,fc,fc_lo:lo,fc_hi:hi,holdout:Ho,fcd:Array.from({length:H},(_,i)=>monthKey(addM(ld,i+1))),res:{}});
+          return;
+        }
+        const trainRaw=ser.slice(0,ser.length-Ho);
+        const train=winsorise(trainRaw);
+        const act=ser.slice(ser.length-Ho);
+        const res={};
+        for(const n of MN){
+          try{
+            const p=M[n](train,Ho);
+            const w=wmape(act,p),ms=mase(act,p,train);
+            res[n]={wmape:isNaN(w)?null:+w.toFixed(4),mase:isNaN(ms)?null:+ms.toFixed(4),status:'ok',p};
+          }catch(e){res[n]={wmape:null,mase:null,status:'failed',error:e.message};}
+        }
+        const valid=MN.filter(n=>res[n].status==='ok'&&res[n].wmape!=null);
+        const win=valid.length?valid.reduce((a,b)=>res[a].wmape<=res[b].wmape?a:b):'Naive';
+        const fullWin=winsorise(ser);
+        let fc;try{fc=M[win](fullWin,H);}catch(e){fc=M['Naive'](ser,H);}
+        fc=fc.map(v=>Math.max(0,+v.toFixed(2)));
+        const {lo,hi}=buildCI(fc,res[win]?.wmape??null);
+        const ld=new Date(mks[mks.length-1]+'-01');
+        summary.push({tid,best_model:win,best_wmape:res[win]?.wmape??null,fc,fc_lo:lo,fc_hi:hi,holdout:Ho,fcd:Array.from({length:H},(_,i)=>monthKey(addM(ld,i+1))),res});
+        MN.forEach(n=>detail.push({tid,model:n,...res[n]}));
+        setProg(true,`Running models (${ti+1}/${terrs.length})…`,10+Math.round((ti+1)/terrs.length*85));
+      });
+      // Build matrix
+      matrix=summary.map(s=>{
+        const row={territory_id:s.tid};
+        MN.forEach(n=>{row['wmape_'+safeCol(n)]=s.res[n]?.wmape??null;});
+        row.best_model=s.best_model;row.best_wmape=s.best_wmape;
+        row.holdout_months=s.holdout;
+        s.fc.forEach((v,i)=>{row[`selected_fc_m${i+1}`]=v;row[`fc_lo_m${i+1}`]=s.fc_lo[i];row[`fc_hi_m${i+1}`]=s.fc_hi[i];});
+        return row;
+      });
+      setProg(true,'Complete',100);
+      setTimeout(()=>{
+        setProg(false);
+        renderSidebar();
+        showContent();
+        if(summary.length)showTerr(summary[0].tid);
+        btn.classList.remove('busy');btn.disabled=false;
+      },300);
+    }catch(e){setProg(false);btn.classList.remove('busy');btn.disabled=false;alert('Error: '+e.message);}
+  },50);
+}
+
+// ═══ SIDEBAR ═════════════════════════════════════════════════════════════════
+function renderSidebar(){
+  document.getElementById('statsBox').style.display='block';
+  document.getElementById('srchBox').style.display='block';
+  document.getElementById('stT').textContent=summary.length;
+  const ws=summary.filter(s=>s.best_wmape!=null).map(s=>s.best_wmape);
+  document.getElementById('stW').textContent=ws.length?(ws.reduce((a,b)=>a+b,0)/ws.length*100).toFixed(1)+'%':'—';
+  document.getElementById('stM').textContent=MN.length;
+  renderList(summary);
+}
+function renderList(items){
+  const ul=document.getElementById('tlist');ul.innerHTML='';
+  items.forEach(s=>{
+    const w=s.best_wmape,pct=w!=null?(w*100).toFixed(1)+'%':'N/A';
+    const cls=w==null?'':w<.15?'wg':w<.30?'wy':'wr';
+    const d=document.createElement('div');
+    d.className='trow'+(s.tid===activeId?' active':'');
+    d.id='tr-'+s.tid;
+    d.innerHTML=`<div style="min-width:0"><div class="tn">${s.tid}</div><div class="tm">${s.best_model.split('(')[0].trim()}</div></div><span class="wp ${cls}">${pct}</span>`;
+    d.onclick=()=>{switchTab('territory');showTerr(s.tid);};
+    ul.appendChild(d);
+  });
+}
+function filterList(q){const f=q.toLowerCase();renderList(summary.filter(s=>s.tid.toLowerCase().includes(f)||s.best_model.toLowerCase().includes(f)));}
+
+// ═══ CONTENT / TABS ══════════════════════════════════════════════════════════
+function showContent(){
+  document.getElementById('emptyMsg').style.display='none';
+  document.getElementById('content').style.display='flex';
+  document.getElementById('content').style.flexDirection='column';
+  document.getElementById('tabBar').style.display='flex';
+}
+function switchTab(tab){
+  currentTab=tab;
+  ['Terr','Fc','Mx','Dl'].forEach(k=>document.getElementById('tab'+k).classList.remove('on'));
+  const map={territory:'Terr',forecast:'Fc',matrix:'Mx',download:'Dl'};
+  document.getElementById('tab'+map[tab]).classList.add('on');
+  if(tab==='territory'&&activeId)showTerr(activeId);
+  else if(tab==='forecast')showForecastSummary();
+  else if(tab==='matrix')showMatrix();
+  else if(tab==='download')showDownload();
+}
+
+// ═══ TERRITORY VIEW ══════════════════════════════════════════════════════════
+function showTerr(tid){
+  activeId=tid;
+  document.querySelectorAll('.trow').forEach(r=>r.classList.remove('active'));
+  const el=document.getElementById('tr-'+tid);
+  if(el){el.classList.add('active');el.scrollIntoView({block:'nearest'});}
+  const s=summary.find(x=>x.tid===tid);if(!s)return;
+  const w=s.best_wmape,wpct=w!=null?(w*100).toFixed(1)+'%':'N/A';
+  const wn=s.best_model.split('(')[0].trim();
+  const fcCols=s.fc.length===1?'1fr':s.fc.length<=3?`repeat(${s.fc.length},1fr)`:'repeat(3,1fr)';
+  const fcCards=s.fc.map((v,i)=>{
+    const lbl=forecastMode==='monthly'?'Month':forecastMode==='quarterly'?`Q${i+1}`:`P${i+1}`;
+    const prev=i>0?s.fc[i-1]:null;
+    const dl=prev!=null?((v-prev)/Math.max(prev,.001)*100).toFixed(1):null;
+    const dc=dl!=null?(parseFloat(dl)>=0?'up':'dn'):'';
+    const lo=s.fc_lo?s.fc_lo[i]:null,hi=s.fc_hi?s.fc_hi[i]:null;
+    return `<div class="fcard">
+      <div class="fc-period">${s.fcd[i]||lbl}</div>
+      <div class="fc-val">${fmt(v)}</div>
+      <div class="fc-unit">TRx forecast</div>
+      ${dl!==null?`<div class="fc-delta ${dc}">${parseFloat(dl)>=0?'▲':'▼'} ${Math.abs(dl)}%</div>`:''}
+      ${lo!=null?`<div class="fc-band"><span class="fc-band-label">80% range</span><span>${fmt(lo)} – ${fmt(hi)}</span></div>`:''}
+    </div>`;
+  }).join('');
+  const sorted=MN.filter(n=>s.res[n]?.status==='ok'&&s.res[n]?.wmape!=null).map(n=>({n,...s.res[n]})).sort((a,b)=>a.wmape-b.wmape);
+  const failed=MN.filter(n=>s.res[n]?.status==='failed').map(n=>({n,...s.res[n]}));
+  const mx=Math.max(...sorted.map(r=>r.wmape),.001);
+  const trows=sorted.map((r,i)=>{
+    const isW=r.n===wn;const bw=Math.round(r.wmape/mx*100);
+    const bc=i===0?'var(--acc)':i<3?'var(--acc2)':'rgba(255,255,255,.12)';
+    const wc=r.wmape<.15?'wg':r.wmape<.30?'wy':'wr';
+    return `<tr class="${isW?'win':''}">
+      <td class="rank">${isW?'★':i+1}</td>
+      <td class="mn">${r.n}</td>
+      <td><div class="bw"><span class="wp ${wc}" style="margin-right:6px">${(r.wmape*100).toFixed(1)}%</span><div class="bar"><div class="bf" style="width:${bw}%;background:${bc}"></div></div></div></td>
+      <td style="color:var(--tx3)">${r.mase!=null?r.mase.toFixed(3):'—'}</td>
+      <td style="font-size:10px;color:${isW?'var(--acc)':'var(--tx3)'}">${isW?'SELECTED':'—'}</td>
+    </tr>`;
+  }).join('');
+  const frows=failed.map(r=>`<tr class="fail"><td class="rank">—</td><td>${r.n}</td><td colspan="2" style="color:var(--tx3);font-size:10px">${r.error||'failed'}</td><td style="font-size:10px;color:var(--danger)">FAILED</td></tr>`).join('');
+
+  document.getElementById('tabContent').innerHTML=`
+    <div class="dh">
+      <div>
+        <div class="dh-title">${tid}</div>
+        <div class="dh-sub">${sorted.length} models competed · ${s.holdout||3}-month adaptive holdout · ${getModeLabel()} forecast</div>
+      </div>
+      <div class="winner-box">
+        <div class="wl">Selected model</div>
+        <div class="wn">${wn}</div>
+        <div class="we">wMAPE on holdout: ${wpct}</div>
+      </div>
+    </div>
+    <div class="sh">Forecasted sales</div>
+    <div style="display:grid;grid-template-columns:${fcCols};gap:10px">${fcCards}</div>
+    <div class="sh">Forecast trend + confidence band</div>
+    <div class="chart-card"><canvas id="fcChart" role="img" aria-label="Forecast chart for ${tid}"></canvas></div>
+    <div class="sh">Model competition — ${MN.length} models</div>
+    <table class="mtbl">
+      <thead><tr><th>#</th><th>Model</th><th>wMAPE (lower = better)</th><th>MASE</th><th>Status</th></tr></thead>
+      <tbody>${trows}${frows}</tbody>
+    </table>`;
+
+  if(myChart){myChart.destroy();myChart=null;}
+  const ctx=document.getElementById('fcChart');
+  if(ctx&&s.fc_lo&&s.fc_hi){
+    const labels=s.fcd.length?s.fcd:s.fc.map((_,i)=>getModeLabel()+' '+(i+1));
+    myChart=new Chart(ctx,{
+      data:{labels,datasets:[
+        {type:'bar',label:'Forecast',data:s.fc,backgroundColor:'rgba(62,240,176,.2)',borderColor:'#3ef0b0',borderWidth:1.5,borderRadius:6,order:2},
+        {type:'line',label:'Upper 80%',data:s.fc_hi,borderColor:'rgba(62,240,176,.4)',backgroundColor:'rgba(62,240,176,.07)',borderWidth:1.5,borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#3ef0b0',fill:'-1',tension:.3,order:1},
+        {type:'line',label:'Lower 80%',data:s.fc_lo,borderColor:'rgba(62,240,176,.4)',backgroundColor:'transparent',borderWidth:1.5,borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#3ef0b0',tension:.3,order:1},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1420',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#8a96a8',bodyColor:'#e2e8f3',titleFont:{family:"'IBM Plex Mono',monospace",size:11},bodyFont:{family:"'IBM Plex Mono',monospace",size:12},callbacks:{label:c=>` ${c.parsed.y.toFixed(2)} TRx`}}},
+        scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#4a5568',font:{family:"'IBM Plex Mono',monospace",size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#4a5568',font:{family:"'IBM Plex Mono',monospace",size:11}},beginAtZero:true}}}
+    });
+  }
+}
+
+// ═══ FORECAST SUMMARY TAB ════════════════════════════════════════════════════
+function showForecastSummary(){
+  if(!summary.length)return;
+  const H=summary[0].fc.length;
+  const fcHeads=Array.from({length:H},(_,i)=>`<th class="sel">${getModeLabel()} +${i+1}</th><th style="color:var(--tx3);font-size:9px">Low</th><th style="color:var(--tx3);font-size:9px">High</th>`).join('');
+  const rows=summary.map(s=>{
+    const w=s.best_wmape,wc=w==null?'':w<.15?'wg':w<.30?'wy':'wr';
+    const fcCells=s.fc.map((v,i)=>`
+      <td class="fc">${fmt(v)}</td>
+      <td class="lo">${s.fc_lo?fmt(s.fc_lo[i]):'—'}</td>
+      <td class="hi">${s.fc_hi?fmt(s.fc_hi[i]):'—'}</td>`).join('');
+    return `<tr onclick="switchTab('territory');showTerr('${s.tid}')">
+      <td class="tid">${s.tid}</td>
+      <td style="font-size:11px;font-family:var(--mono);color:var(--tx2)">${s.best_model.split('(')[0].trim()}</td>
+      <td><span class="wp ${wc}">${w!=null?(w*100).toFixed(1)+'%':'N/A'}</span></td>
+      <td style="font-size:10px;font-family:var(--mono);color:var(--tx3)">${s.holdout||3}m</td>
+      ${fcCells}
+    </tr>`;
+  }).join('');
+  document.getElementById('tabContent').innerHTML=`
+    <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Forecast summary</div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--tx3);margin-bottom:20px">${summary.length} territories · ${getModeLabel()} view · click any row for detail</div>
+    <div class="fst-wrap">
+      <table class="fst">
+        <thead><tr>
+          <th>Territory</th><th>Best model</th><th>wMAPE</th><th>Holdout</th>
+          ${fcHeads}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══ MATRIX VIEW ═════════════════════════════════════════════════════════════
+function showMatrix(){
+  if(!matrix.length)return;
+  const cols=Object.keys(matrix[0]);
+  const wc=cols.filter(c=>c.startsWith('wmape_'));
+  const fc=cols.filter(c=>c.startsWith('selected_fc_m'));
+  const ths=['<th>Territory</th>',...wc.map(c=>`<th>${c.replace('wmape_','').replace(/_/g,' ')}</th>`),'<th class="sel">Best model</th>','<th class="sel">Best wMAPE</th>',...fc.map((_,i)=>`<th class="sel">Fc M+${i+1}</th>`)].join('');
+  const trs=matrix.map(row=>{
+    const wcs=wc.map(c=>{const v=row[c];if(v==null)return`<td style="color:var(--tx3)">—</td>`;const cls=v<.15?'wg':v<.30?'wy':'wr';return`<td><span class="wp ${cls}">${(v*100).toFixed(1)}%</span></td>`;}).join('');
+    const fcs=fc.map(c=>`<td class="sel">${row[c]!=null?Number(row[c]).toFixed(1):'—'}</td>`).join('');
+    const bw=row.best_wmape,bc=bw<.15?'wg':bw<.30?'wy':'wr';
+    return`<tr onclick="switchTab('territory');showTerr('${row.territory_id}')"><td class="tid">${row.territory_id}</td>${wcs}<td style="font-family:var(--mono);font-size:10px;color:var(--acc)">${row.best_model||'—'}</td><td><span class="wp ${bc}">${bw!=null?(bw*100).toFixed(1)+'%':'—'}</span></td>${fcs}</tr>`;
+  }).join('');
+  document.getElementById('tabContent').innerHTML=`
+    <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Model matrix</div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--tx3);margin-bottom:20px">${matrix.length} territories × ${wc.length} models — click any row for territory detail</div>
+    <div class="mx-wrap"><table class="mxt"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+// ═══ DOWNLOAD TAB ════════════════════════════════════════════════════════════
+function showDownload(){
+  document.getElementById('tabContent').innerHTML=`
+    <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Download results</div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--tx3);margin-bottom:24px">Choose which sheet to export as CSV</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:700px">
+      ${dlCard('Forecast summary','One row per territory with best model, wMAPE, and forecast values with confidence bands. Best for sharing with the commercial team.','dlForecastSummary()')}
+      ${dlCard('Model matrix','Full n×m matrix — every model\'s wMAPE for every territory. Best for analysis and QC.','dlMatrix()')}
+      ${dlCard('Model competition','All model results in long format — every model × territory combination. Best for deep-dive audit.','dlDetail()')}
+    </div>`;
+}
+function dlCard(title,desc,fn){
+  return`<div style="background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">${title}</div>
+      <div style="font-size:11px;font-family:var(--mono);color:var(--tx3);line-height:1.6">${desc}</div>
+    </div>
+    <button class="abtn-primary" onclick="${fn}" style="align-self:flex-start">Download CSV</button>
+  </div>`;
+}
+
+function dlForecastSummary(){
+  if(!summary.length)return;
+  const H=summary[0].fc.length;
+  const cols=['territory_id','best_model','wmape_holdout','holdout_months',...Array.from({length:H},(_,i)=>[`fc_m${i+1}`,`fc_lo_m${i+1}`,`fc_hi_m${i+1}`]).flat()];
+  const rows=summary.map(s=>[
+    s.tid,s.best_model,s.best_wmape!=null?(s.best_wmape*100).toFixed(2)+'%':'',s.holdout||3,
+    ...Array.from({length:H},(_,i)=>[s.fc[i]??'',s.fc_lo?.[i]??'',s.fc_hi?.[i]??'']).flat()
+  ]);
+  dlCSV([cols,...rows],'terraforecast_summary.csv');
+}
+
+function dlMatrix(){
+  if(!matrix.length)return;
+  const cols=Object.keys(matrix[0]);
+  const rows=matrix.map(r=>cols.map(c=>r[c]??''));
+  dlCSV([cols,...rows],'terraforecast_matrix.csv');
+}
+
+function dlDetail(){
+  if(!detail.length)return;
+  const cols=['territory_id','model','wmape','mase','status','error_msg'];
+  const rows=detail.map(r=>cols.map(c=>r[c]??''));
+  dlCSV([cols,...rows],'terraforecast_model_competition.csv');
+}
+
+function dlCSV(rows,filename){
+  const csv=rows.map(r=>r.map(v=>{const s=String(v??'');return s.includes(',')?`"${s}"`:s;}).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=filename;a.click();
+}
+</script>
+</body>
+</html>
